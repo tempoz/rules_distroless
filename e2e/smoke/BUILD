@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_lib//lib:params_file.bzl", "params_file")
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@container_structure_test//:defs.bzl", "container_structure_test")
 load("@rules_distroless//distroless:defs.bzl", "cacerts", "group", "passwd")
@@ -129,4 +131,44 @@ container_structure_test(
     }),
     image = ":image_platform",
     target_compatible_with = COMPATIBLE_WITH,
+)
+
+# With `include_transitive = False`, a package's target must contain nothing but
+# its own data, i.e. none of jq's dependencies (libjq1, libonig5, ...).
+# Only the rootpaths are compared, so no .deb needs to be built.
+platform_transition_filegroup(
+    name = "jq_nodeps",
+    srcs = ["@bullseye_nodeps//jq"],
+    target_platform = select({
+        "@platforms//cpu:arm64": ":linux_arm64",
+        "@platforms//cpu:x86_64": ":linux_amd64",
+    }),
+)
+
+platform_transition_filegroup(
+    name = "jq_nodeps_data",
+    srcs = ["@bullseye_nodeps//jq:data"],
+    target_platform = select({
+        "@platforms//cpu:arm64": ":linux_arm64",
+        "@platforms//cpu:x86_64": ":linux_amd64",
+    }),
+)
+
+[
+    params_file(
+        name = name + "_rootpaths",
+        out = name + "_rootpaths.txt",
+        args = ["$(rootpaths :%s)" % name],
+        data = [":" + name],
+    )
+    for name in [
+        "jq_nodeps",
+        "jq_nodeps_data",
+    ]
+]
+
+diff_test(
+    name = "include_transitive_false_test",
+    file1 = ":jq_nodeps_rootpaths",
+    file2 = ":jq_nodeps_data_rootpaths",
 )

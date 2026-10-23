@@ -151,6 +151,28 @@ def _resolve_optionals_test(ctx):
 
 resolve_optionals_test = unittest.make(_resolve_optionals_test)
 
+def _resolve_without_transitive_test(ctx):
+    env = unittest.begin(ctx)
+
+    idx = _make_index()
+    idx.add_package(package = "libc6")
+    idx.add_package(package = "libjq1", depends = "libc6")
+    idx.add_package(package = "jq", depends = "libjq1, libc6")
+
+    (root_package, dependencies, unmet_dependencies, _) = idx.resolution.resolve_all(
+        name = "jq",
+        version = ("=", _test_version),
+        arch = _test_arch,
+        include_transitive = False,
+    )
+    asserts.equals(env, "jq", root_package["Package"])
+    asserts.equals(env, [], dependencies)
+    asserts.equals(env, [], unmet_dependencies)
+
+    return unittest.end(env)
+
+resolve_without_transitive_test = unittest.make(_resolve_without_transitive_test)
+
 def _resolve_architecture_specific_packages_test(ctx):
     env = unittest.begin(ctx)
 
@@ -529,6 +551,7 @@ def resolution_tests():
     """
     parse_depends_test(name = _TEST_SUITE_PREFIX + "parse_depends")
     resolve_optionals_test(name = _TEST_SUITE_PREFIX + "resolve_optionals")
+    resolve_without_transitive_test(name = _TEST_SUITE_PREFIX + "resolve_without_transitive")
     resolve_architecture_specific_packages_test(name = _TEST_SUITE_PREFIX + "resolve_architectures_specific")
     resolve_aliases_test(name = _TEST_SUITE_PREFIX + "resolve_aliases")
     resolve_circular_deps_test(name = _TEST_SUITE_PREFIX + "parse_circular")

@@ -83,5 +83,15 @@ apt.install(
         "cloud-sdk",
     ],
 )
+
+# Regression test for include_transitive being ignored; see :include_transitive_false_test.
+# jq must not be installed by any other apt.install above, otherwise its
+# dependencies would leak in through the shared package repository.
+apt.install(
+    dependency_set = "bullseye_nodeps",
+    include_transitive = False,
+    packages = ["jq"],
+    suites = ["bullseye"],
+)
 apt.lock(into = ":bullseye.lock.json")
-use_repo(apt, "bullseye")
+use_repo(apt, "bullseye", "bullseye_nodeps")
